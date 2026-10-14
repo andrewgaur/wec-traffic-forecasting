@@ -2,7 +2,7 @@
 
 import pandas as pd
 import numpy as np
-import sys, csv
+import sys, csv, math
 from pathlib import Path
 from hashlib import sha256
 
@@ -66,7 +66,8 @@ def parse_duration_seconds(df):
 def clean_lap_records(df):
 
     # check repeated records
-    repeat_records = df.duplicated(subset=["RACE_ID", "NUMBER", "LAP_NUMBER"], keep="first")
+    repeat_records = df.duplicated(subset = ["RACE_ID", "NUMBER", "LAP_NUMBER"], keep = 'first')
+
     if repeat_records.any():
         print(f"Dropping {repeat_records.sum()} repeated lap records.")
         df = df[~repeat_records]
@@ -90,22 +91,63 @@ def clean_lap_records(df):
     # additional cleaning audits
 
     for col in ("LAP_TIME_SEC", "ELAPSED_SEC", "NUMBER", "LAP_NUMBER"):
+
+        missing = df[col].isna()
+        if missing.any():
+            print(f"Missing data for column '{col}': {missing.sum()} rows")
+            print(df.loc[missing, ["RACE_ID", "NUMBER", "LAP_NUMBER", col]].head())
+        else:
+            print(f"No missing data found in column '{col}'")
+        
+        '''
         if not df[col].notnull().all():
             print(f"Missing data for column '{col}': {df[col].isnull().sum()}")
 
             df = df[df[col].notnull()]
+        '''
 
-    # valid lap time audit
+    # column-specific validity checks
+    for col in df.columns:
+        match col:
+            case "LAP_TIME_SEC":
+                if (df[col] < 0).any() or np.isinf(df[col]).any():
+                    print(f"Invalid negative or infinite values found in column '{col}'")
 
-    
+            case "ELAPSED_SEC":
+                if np.isinf(df[col]).any():
+                    print(f"Invalid infinite values found in column '{col}'")
+
+                ordered = df.sort_values(["RACE_ID", "NUMBER", "LAP_NUMBER"])
+                ordered_by_car = ordered.groupby(["RACE_ID", "NUMBER"])
+
+                elapsed_diff = ordered_by_car["ELAPSED_SEC"].diff()
+                lap_diff = ordered_by_car["LAP_NUMBER"].diff()
+
+                # if lap_diff == 1: invalid = elapsed_diff <= 0
+                invalid = elapsed_diff <= 0
+
+                if invalid.any():
+                    print("Elapsed time did not strictly increase for following laps:")
+                    print(ordered.loc[invalid, ["RACE_ID", "NUMBER", "LAP_NUMBER", "ELAPSED_SEC"]])
+
+            case "LAP_NUMBER":
+                if (df[col] <= 0).any() or (df[col].map(lambda row: type(row) != int)).any():
+                    print(f"Invalid non-positive or non-integer values found in column '{col}'")
+
 
     return df
+
+def make_race_splits():
+    pass
+
 
 if __name__ == "__main__":
     path = Path(sys.argv[1]) if len(sys.argv) > 1 else lm_path
     race_id = sys.argv[2] if len(sys.argv) > 2 else race
-    print("Usage: python load_data.py <path_to_csv> <race_id>") if len(sys.argv) < 3 else None
+    print(
+        "Usage: python load_data.py <path_to_csv> <race_id>\nUsing default Race ID 'Le_Mans_2026'\n"
+        ) if len(sys.argv) < 3 else None
     
     race_data = load_race_data(race_id, path)
     race_data = clean_lap_records(parse_duration_seconds(race_data))
-    print(f"Race Data Head: \n{race_data.head()}")
+    print(f"\nRace Data Head: \n{race_data.head()}")
