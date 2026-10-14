@@ -87,6 +87,18 @@ def clean_lap_records(df):
         print(f"Missing car number for the following laps: {missing_car_id}")
         # df = df[df["NUMBER"].notnull()]
 
+    # additional cleaning audits
+
+    for col in ("LAP_TIME_SEC", "ELAPSED_SEC", "NUMBER", "LAP_NUMBER"):
+        if not df[col].notnull().all():
+            print(f"Missing data for column '{col}': {df[col].isnull().sum()}")
+
+            df = df[df[col].notnull()]
+
+    # valid lap time audit
+
+    
+
     return df
 
 if __name__ == "__main__":
