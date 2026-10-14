@@ -18,15 +18,20 @@ if len(csv_files) != 1:
         )
 lm_path = csv_files[0]
 
+# load race data from raw csv file, add race id, return as a dataframe
 
-def load_race_data(path):
+def load_race_data(race_id, path):
     raw_race_data = pd.read_csv(path, sep = ";", encoding = "utf-8", dtype=str)
     raw_race_data.columns = raw_race_data.columns.str.strip()
     race_df = pd.DataFrame(raw_race_data)
+
+    # add race id
+    race_df.insert(0, "RACE_ID", race_id)
+
     return race_df
 
 ## source manifest??
-# would/should include event, session, source URL, retrieval date, local path, etc
+# should include event, session, source URL, retrieval date, local path, etc
 # no clue if this is the right process
 
 def save_source_manifest(source_id, race_id, session, source_url, retrieval_date, path):
@@ -36,25 +41,43 @@ def save_source_manifest(source_id, race_id, session, source_url, retrieval_date
         hash = sha256(Path(path).read_bytes()).hexdigest()
         writer.writerow([source_id, race_id, session, source_url, retrieval_date, path, hash])
 
+# translate lap time and elapsed time to seconds
+# convert lap number and driver number to numeric
+# replace NaN with None
+
 def parse_duration_seconds(df):
 
-    lap = df.loc['LAP_TIME'].strip().split(':')
-    df["LAP_SEC"] = float(lap[0]) * 60 + float(lap[1])
-    
+    df = df.replace({np.nan: None})
 
-    for row in df:
-        lap = df.loc[row, 'LAP_TIME']
-        lap = lap.strip().split(':')
-        elapsed = df.loc[row, 'ELAPSED'].strip().split(':')
+    for column in ("LAP_TIME", "ELAPSED"):
+
+        times = df[column].str.strip()
+        times = times.mask(times.str.count(":").eq(1), "00:" + times)
         
-        lap_seconds = float(lap[0]) * 60 + float(lap[1])
-        elapsed_seconds = float(elapsed[0]) * 60 + float(elapsed[1])
+        df[f"{column}_SEC"] = pd.to_timedelta(times).dt.total_seconds()
 
-        df["LAP_SEC"][row] = lap_seconds
-        df["ELAPSED_SEC"][row] = elapsed_seconds
+    for column in ("LAP_NUMBER", "DRIVER_NUMBER"):
+        df[column] = pd.to_numeric(df[column], errors="coerce")
+
+    return df
+
+
+# clean lap records removing duplicates based on race, car number, driver number, and lap number
+def clean_lap_records(df):
+    repeat_records = df.duplicated(subset=["RACE_ID", "NUMBER", "DRIVER_NUMBER", "LAP_NUMBER"], keep="first")
+    if repeat_records.any():
+        print(f"Dropping {repeat_records.sum()} repeated lap records.")
+        df = df[~repeat_records]
+    else:
+        print("No repeated lap records found.")
+
+    return df
 
 if __name__ == "__main__":
     path = Path(sys.argv[1]) if len(sys.argv) > 1 else lm_path
-    race_data = load_race_data(path)
-    parse_duration_seconds(race_data)
-    print(race_data.head())
+    race_id = sys.argv[2] if len(sys.argv) > 2 else race
+    print("Usage: python load_data.py <path_to_csv> <race_id>") if len(sys.argv) < 3 else None
+    
+    race_data = load_race_data(race_id, path)
+    race_data = clean_lap_records(parse_duration_seconds(race_data))
+    print(f"Race Data Head: \n{race_data.head()}")
