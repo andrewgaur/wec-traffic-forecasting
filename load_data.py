@@ -50,7 +50,7 @@ def parse_duration_seconds(df):
     df = df.replace({np.nan: None})
 
     for column in ("LAP_TIME", "ELAPSED"):
-
+    
         times = df[column].str.strip()
         times = times.mask(times.str.count(":").eq(1), "00:" + times)
         
@@ -62,14 +62,30 @@ def parse_duration_seconds(df):
     return df
 
 
-# clean lap records removing duplicates based on race, car number, driver number, and lap number
+# clean lap records removing duplicates based on race, car number, and lap number
 def clean_lap_records(df):
-    repeat_records = df.duplicated(subset=["RACE_ID", "NUMBER", "DRIVER_NUMBER", "LAP_NUMBER"], keep="first")
+
+    # check repeated records
+    repeat_records = df.duplicated(subset=["RACE_ID", "NUMBER", "LAP_NUMBER"], keep="first")
     if repeat_records.any():
         print(f"Dropping {repeat_records.sum()} repeated lap records.")
         df = df[~repeat_records]
     else:
         print("No repeated lap records found.")
+
+    # check missing timing data and identifiers
+    # lap time
+    laps_all_float = df["LAP_TIME_SEC"].apply(lambda time: isinstance(time, float))
+    missing_lap_time_id = {row["RACE_ID"]: row["LAP_NUMBER"] for _, row in df[~laps_all_float].iterrows()}
+
+    if not laps_all_float.all():
+        print(f"Missing lap time for the following laps: {missing_lap_time_id}")
+        # df = df[lap_time_float]
+    
+    if not df["NUMBER"].notnull().all():
+        missing_car_id = {row["RACE_ID"]: row["LAP_NUMBER"] for _, row in df[df["NUMBER"].isnull()].iterrows()}
+        print(f"Missing car number for the following laps: {missing_car_id}")
+        # df = df[df["NUMBER"].notnull()]
 
     return df
 
