@@ -157,9 +157,17 @@ def make_race_splits():
     # source data folder should only ever contain race folders, no other files
     # so race_folders should only contain folders, no files
 
+    
+    ''' 
+    Following 21 lines are currently unused, previously used to compile a list of race data
+    folders/files in source_data. Currently irrelevant since I'm listing the races
+    and paths manually. May change in the future.
+    '''
     race_folders = list(source_data.glob("*"))
     races = []
     race_csvs = []
+
+    '''
     for folder in race_folders:
         csv_files = list(folder.glob("*.csv"))
         if len(csv_files) != 1:
@@ -175,13 +183,21 @@ def make_race_splits():
             f"Expected exactly one CSV file in each race folder",
             f"found {len(race_csvs)} races and {len(race_folders)} folders"
         )
+    '''
 
-    '''TEMPORARY (REMOVE LATER): '''
-    train_races = {"Imola_2026": race_csvs[0]}
-    test_races = {"Le_Mans_2026": race_csvs[1]}
+    '''TEMPORARY?'''
+    imola_csv = list(source_data.glob("Imola_2026/*.csv"))[0]
+    lemans_csv = list(source_data.glob("Le_Mans_2026/*.csv"))[0]
+
+    races = {"Imola_2026": imola_csv, "Le_Mans_2026": lemans_csv}
+    race_ids = ["Imola_2026", "Le_Mans_2026"]
+    race_csvs = [imola_csv, lemans_csv]
+
+    train_races = {"Imola_2026": imola_csv}
+    test_races = {"Le_Mans_2026": lemans_csv}
     # test races will be the held-out races that the model is evaluated on
 
-    return races, race_csvs, train_races, test_races
+    return races, race_ids, race_csvs, train_races, test_races
 
 def build_records(clean_df):
     # dictionary of records for each race, keyed by race id and car number
@@ -197,17 +213,44 @@ def build_records(clean_df):
 
     elapsed_sort = clean_df.sort_values(["ELAPSED_SEC"])
 
-    lmgt3_ct = 0
-    lmp2_ct = 0
+    #lmgt3_ct = 0
+    #lmp2_ct = 0
+
+    history = {}
 
     for row in range(len(elapsed_sort)):
 
         current = elapsed_sort.iloc[row]
         car_number = current["NUMBER"]
-        lap_number = current["LAP_NUMBER"]
+        lap_number = current["LAP_NUMBER"]\
+        
+        lap_history_data = {
+            "LAP_NUMBER": lap_number,
+            "LAP_TIME_SEC": current["LAP_TIME_SEC"],
+            "ELAPSED_TIME_SEC": current["ELAPSED_SEC"],
+            "DRIVER_NUM": current["DRIVER_NUMBER"],
+            "FLAG_AT_FL": current["FLAG_AT_FL"],
+            "CROSS_FL_IN_PIT": current["CROSSING_FINISH_LINE_IN_PIT"],
+            "PIT_TIME": current["PIT_TIME"],
+        }
 
+        # if the car already has prev lap data stored in history, just append lap data to existing
+        # list. otherwise, initialize car number key in history dict with a value of a list of lap data
+
+        if car_number in history.keys():
+            history[car_number].append(lap_history_data)
+
+        elif car_number not in history.keys():
+            history[car_number] = [lap_history_data]
+
+        
         state[car_number] = current
+
         if current["CLASS"] == "HYPERCAR":
+
+            lmgt3_ct = sum(series["CLASS"].count("LMGT3") for series in state.values())
+            lmp2_ct = sum(series["CLASS"].count("LMP2") for series in state.values())
+
             origins.append({
                 "RACE_ID": current["RACE_ID"],
                 "NUMBER": car_number,
@@ -219,15 +262,16 @@ def build_records(clean_df):
                 "KNOWN_LMGT3_COUNT": lmgt3_ct,
                 "KNOWN_LMP2_COUNT": lmp2_ct
             })
-            
+
+        '''
         elif current["CLASS"] == "LMGT3":
             lmgt3_ct += 1
         elif current["CLASS"] == "LMP2":
             lmp2_ct += 1
+        '''
 
-
-    return pd.DataFrame(origins)
-
+    # print(f"STATE (007):\n{state["007"]}")
+    return pd.DataFrame(origins), history
 
 
 if __name__ == "__main__":
@@ -242,15 +286,18 @@ if __name__ == "__main__":
 
     print(f"\nRace Data Head: \n{race_data.head()}")
 
-    print(f"\nRecords Data Head:\n{build_records(race_data).head()}\n")
+    origins, history = build_records(race_data)
+    print(f"\nRecords Data Head:\n{origins.head()}\n")
+
+    # print(f"\nHistory Data Part:\n{history["51"][:3]}\n")
     '''
     race_records = build_records(race_data)
     print(f"\nRecords Data Car 51:\n{race_records.iloc[race_records["NUMBER"] == 51]}")
     '''
 
-    race_ids, race_csvs, train, test = make_race_splits()
+    races, race_ids, race_csvs, train, test = make_race_splits()
 
-    print(f"Races: {race_ids}")
-    print(f"Race CSVs: {race_csvs}")
+    # print(f"{{Race: Race CSV}}: \n{races}")
+    # print(f"\nTrain Races: {train.keys()}\nTest Races: {test.keys()}")
 
-    print(f"\nTrain Races: {train.keys()}\nTest Races: {test.keys()}")
+    print(f"Records Data Row 130:\n{origins.iloc[129]}\n")
