@@ -177,8 +177,9 @@ def make_race_splits():
         )
 
     '''TEMPORARY (REMOVE LATER): '''
-    train_races = {races[0]: race_csvs[0]}
-    test_races = {races[1]: race_csvs[1]}
+    train_races = {"Imola_2026": race_csvs[0]}
+    test_races = {"Le_Mans_2026": race_csvs[1]}
+    # test races will be the held-out races that the model is evaluated on
 
     return races, race_csvs, train_races, test_races
 
@@ -186,7 +187,7 @@ def build_records(clean_df):
     # dictionary of records for each race, keyed by race id and car number
 
     # state is the latest completed observation for each car, keyed by car number
-    # it is saved/changed after each lap (as you replay crossings)
+    # it is saved/changed/replaced after each lap (as you replay crossings)
     state = {}
 
     # saved opportunities, used to predict car's next lap
@@ -195,30 +196,37 @@ def build_records(clean_df):
     origins = []
 
     elapsed_sort = clean_df.sort_values(["ELAPSED_SEC"])
-    
-    for num in range(len(elapsed_sort)):
-        while clean_df["NUMBER"] not in state.keys():
-            state[clean_df.at(num, "NUMBER")] = clean_df.iloc[num]
 
-        if clean_df.at(num, "CLASS") == "Hypercar":
-            origins.append(clean_df.iloc[num])
+    lmgt3_ct = 0
+    lmp2_ct = 0
+
+    for row in range(len(elapsed_sort)):
+
+        current = elapsed_sort.iloc[row]
+        car_number = current["NUMBER"]
+        lap_number = current["LAP_NUMBER"]
+
+        state[car_number] = current
+        if current["CLASS"] == "HYPERCAR":
+            origins.append({
+                "RACE_ID": current["RACE_ID"],
+                "NUMBER": car_number,
+                "CLASS": current["CLASS"],
+                "ORIGIN_ELAPSED_SEC": current["ELAPSED_SEC"],
+                "COMPLETED_LAP_NUMBER": lap_number,
+                "TARGET_LAP_NUMBER": lap_number + 1,
+                "KNOWN_CAR_COUNT": len(state),
+                "KNOWN_LMGT3_COUNT": lmgt3_ct,
+                "KNOWN_LMP2_COUNT": lmp2_ct
+            })
+            
+        elif current["CLASS"] == "LMGT3":
+            lmgt3_ct += 1
+        elif current["CLASS"] == "LMP2":
+            lmp2_ct += 1
 
 
-    '''
-    for num in records.keys():
-        
-        car_row = clean_df[clean_df["NUMBER"] == num]
-
-        records[num] = {
-            "RACE_ID": car_row["RACE_ID"].iloc[0],
-            "NUMBER": num,
-            "LAST_LAP": car_row["LAP_NUMBER"].max(),
-            "LAST_LAP_TIME": car_row["LAP_TIME_SEC"].iloc[-1],
-            "LAST_ELAPSED": car_row["ELAPSED_SEC"].iloc[-1],
-        }
-
-    elapsed_ordered = clean_df.sort_values(["ELAPSED_SEC"])
-    '''
+    return pd.DataFrame(origins)
 
 
 
@@ -231,12 +239,18 @@ if __name__ == "__main__":
     
     race_data = load_race_data(race_id, path)
     race_data = clean_lap_records(parse_duration_seconds(race_data))
+
     print(f"\nRace Data Head: \n{race_data.head()}")
 
-    # print(build_records(race_data))
+    print(f"\nRecords Data Head:\n{build_records(race_data).head()}\n")
+    '''
+    race_records = build_records(race_data)
+    print(f"\nRecords Data Car 51:\n{race_records.iloc[race_records["NUMBER"] == 51]}")
+    '''
 
     race_ids, race_csvs, train, test = make_race_splits()
 
     print(f"Races: {race_ids}")
     print(f"Race CSVs: {race_csvs}")
-    print(f"Train Races: {train.keys()}\nTest Races: {test.keys()}")
+
+    print(f"\nTrain Races: {train.keys()}\nTest Races: {test.keys()}")
