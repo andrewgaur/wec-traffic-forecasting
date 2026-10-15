@@ -110,8 +110,8 @@ def clean_lap_records(df):
     for col in df.columns:
         match col:
             case "LAP_TIME_SEC":
-                if (df[col] < 0).any() or np.isinf(df[col]).any():
-                    print(f"Invalid negative or infinite values found in column '{col}'")
+                if (df[col] <= 0).any() or np.isinf(df[col]).any():
+                    print(f"Invalid negative, zero, or infinite values found in column '{col}'")
 
             case "ELAPSED_SEC":
                 if np.isinf(df[col]).any():
@@ -123,12 +123,21 @@ def clean_lap_records(df):
                 elapsed_diff = ordered_by_car["ELAPSED_SEC"].diff()
                 lap_diff = ordered_by_car["LAP_NUMBER"].diff()
 
-                # if lap_diff == 1: invalid = elapsed_diff <= 0
-                invalid = elapsed_diff <= 0
+                diff = (elapsed_diff - ordered["LAP_TIME_SEC"]).abs()
+                invalid = lap_diff.eq(1) & diff.gt(0.002)
 
                 if invalid.any():
+                    print("Invalid lap time data found for the following laps:")
+                    print(ordered.loc[invalid, ["RACE_ID", "NUMBER", "LAP_NUMBER",
+                                        "LAP_TIME_SEC", "ELAPSED_SEC"]])
+
+                if lap_diff.gt(1).any():
+                    print("Non-consecutive laps found for the following cars:")
+                    print(ordered.loc[lap_diff > 1, ["RACE_ID", "NUMBER", "LAP_NUMBER"]])
+
+                if (elapsed_diff <= 0).any():
                     print("Elapsed time did not strictly increase for following laps:")
-                    print(ordered.loc[invalid, ["RACE_ID", "NUMBER", "LAP_NUMBER", "ELAPSED_SEC"]])
+                    print(ordered.loc[elapsed_diff <= 0, ["RACE_ID", "NUMBER", "LAP_NUMBER", "ELAPSED_SEC"]])
 
             case "LAP_NUMBER":
                 if (df[col] <= 0).any() or (df[col].map(lambda row: type(row) != int)).any():
@@ -138,7 +147,79 @@ def clean_lap_records(df):
     return df
 
 def make_race_splits():
-    pass
+
+    # race_csvs contains a list of paths to the csv files for each race
+    # we can now designate, load, and clean them
+
+    proj_folder = Path(__file__).resolve().parent
+    source_data = proj_folder / "data" / "source_data"
+
+    # source data folder should only ever contain race folders, no other files
+    # so race_folders should only contain folders, no files
+
+    race_folders = list(source_data.glob("*"))
+    races = []
+    race_csvs = []
+    for folder in race_folders:
+        csv_files = list(folder.glob("*.csv"))
+        if len(csv_files) != 1:
+            raise FileNotFoundError(
+                f"Expected exactly one CSV file in {folder}, found {len(csv_files)}"
+            )
+
+        races.append(folder.name)
+        race_csvs.append(Path(csv_files[0]).resolve())
+
+    if len(race_csvs) != len(race_folders):
+        raise FileNotFoundError(
+            f"Expected exactly one CSV file in each race folder",
+            f"found {len(race_csvs)} races and {len(race_folders)} folders"
+        )
+
+    '''TEMPORARY (REMOVE LATER): '''
+    train_races = {races[0]: race_csvs[0]}
+    test_races = {races[1]: race_csvs[1]}
+
+    return races, race_csvs, train_races, test_races
+
+def build_records(clean_df):
+    # dictionary of records for each race, keyed by race id and car number
+
+    # state is the latest completed observation for each car, keyed by car number
+    # it is saved/changed after each lap (as you replay crossings)
+    state = {}
+
+    # saved opportunities, used to predict car's next lap
+    # changes when car completes a lap (adds a new state)
+    # at the moment, exclusively hypercars
+    origins = []
+
+    elapsed_sort = clean_df.sort_values(["ELAPSED_SEC"])
+    
+    for num in range(len(elapsed_sort)):
+        while clean_df["NUMBER"] not in state.keys():
+            state[clean_df.at(num, "NUMBER")] = clean_df.iloc[num]
+
+        if clean_df.at(num, "CLASS") == "Hypercar":
+            origins.append(clean_df.iloc[num])
+
+
+    '''
+    for num in records.keys():
+        
+        car_row = clean_df[clean_df["NUMBER"] == num]
+
+        records[num] = {
+            "RACE_ID": car_row["RACE_ID"].iloc[0],
+            "NUMBER": num,
+            "LAST_LAP": car_row["LAP_NUMBER"].max(),
+            "LAST_LAP_TIME": car_row["LAP_TIME_SEC"].iloc[-1],
+            "LAST_ELAPSED": car_row["ELAPSED_SEC"].iloc[-1],
+        }
+
+    elapsed_ordered = clean_df.sort_values(["ELAPSED_SEC"])
+    '''
+
 
 
 if __name__ == "__main__":
@@ -151,3 +232,11 @@ if __name__ == "__main__":
     race_data = load_race_data(race_id, path)
     race_data = clean_lap_records(parse_duration_seconds(race_data))
     print(f"\nRace Data Head: \n{race_data.head()}")
+
+    # print(build_records(race_data))
+
+    race_ids, race_csvs, train, test = make_race_splits()
+
+    print(f"Races: {race_ids}")
+    print(f"Race CSVs: {race_csvs}")
+    print(f"Train Races: {train.keys()}\nTest Races: {test.keys()}")
