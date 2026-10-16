@@ -9,12 +9,10 @@ Race data is stored in `wec-traffic-forecasting/data/source_data/` and is groupe
 
 ### Races:
 
-|---------|------|-------|
-|  Race   | Year |  Use  |
-|---------|------|-------|
-| Le Mans | 2026 | Test  | (Current)
-|  Imola  | 2026 | Train | (Current)
-|   Spa   | 2026 | Train | (Future)
-| C.O.T.A | 2026 | Train | (Future)
-|  Imola  | 2025 | Test  | (Future)
-|---------|------|-------|
+|  Race   | Year |  Use  |  Status  |
+|---------|------|-------|----------|
+| Le Mans | 2026 | Test  |  Current |
+|  Imola  | 2026 | Train |  Current |
+|   Spa   | 2026 | Train |  Future  |
+| C.O.T.A | 2026 | Train |  Future  |
+|  Imola  | 2025 | Test  |  Future  |
