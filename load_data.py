@@ -147,6 +147,14 @@ def clean_lap_records(df):
     return df
 
 def make_race_splits():
+    '''
+    at the moment, manually defines and returns:\n
+    `races`: dictionary keyed by race id containing race csv paths as the value\n
+    `race_ids`: list of race ids\n
+    `race_csvs`: list of race csv paths\n
+    `train_races`: dictionary of designated training race ids and their csv file paths\n
+    `test_races`: dictionary of designated testing race ids and their csv file paths\n
+    '''
 
     # race_csvs contains a list of paths to the csv files for each race
     # we can now designate, load, and clean them
@@ -164,9 +172,12 @@ def make_race_splits():
     and paths manually. May change in the future.
     '''
     race_folders = list(source_data.glob("*"))
-    races = []
-    race_csvs = []
+    # races = []
+    # race_csvs = []
 
+    # this was either incorrect or was general for any races
+    # and I changed it to manually use Le Mans and Imola
+    # could be revised later when using more data
     '''
     for folder in race_folders:
         csv_files = list(folder.glob("*.csv"))
@@ -199,8 +210,17 @@ def make_race_splits():
 
     return races, race_ids, race_csvs, train_races, test_races
 
-def build_records(clean_df):
-    # dictionary of records for each race, keyed by race id and car number
+def build_records(clean_df: pd.DataFrame):
+    '''
+    takes input `clean_df` of type pd.DataFrame. meant to be the cleaned df that is
+    output from `clean_lap_records()`.\n
+    builds dictionary of records for each race, keyed by race id and car number\n
+    function sorts the cleaned dataframe input by elapsed time, so the df is in
+    the order of finish line crossings\n
+    then for each row in the sorted dataframe, it saves the latest lap for that row's
+    car in dictionary `state`, keyed by car number. If the class of the current row's
+    car is `"HYPERCAR"`, then the row is appended to list `origin`.
+    '''
 
     # state is the latest completed observation for each car, keyed by car number
     # it is saved/changed/replaced after each lap (as you replay crossings)
@@ -222,7 +242,7 @@ def build_records(clean_df):
 
         current = elapsed_sort.iloc[row]
         car_number = current["NUMBER"]
-        lap_number = current["LAP_NUMBER"]\
+        lap_number = current["LAP_NUMBER"]
         
         lap_history_data = {
             "LAP_NUMBER": lap_number,
@@ -248,8 +268,16 @@ def build_records(clean_df):
 
         if current["CLASS"] == "HYPERCAR":
 
-            lmgt3_ct = sum(series["CLASS"].count("LMGT3") for series in state.values())
-            lmp2_ct = sum(series["CLASS"].count("LMP2") for series in state.values())
+            assert all(
+                observation["ELAPSED_SEC"] <= current["ELAPSED_SEC"]
+                for observation in state.values()
+            )
+            
+            available_laps_now = history[car_number]
+            count_available_now = len(available_laps_now)
+
+            lmgt3_ct = sum(series["CLASS"] == "LMGT3" for series in state.values())
+            lmp2_ct = sum(series["CLASS"] == "LMP2" for series in state.values())
 
             origins.append({
                 "RACE_ID": current["RACE_ID"],
@@ -260,7 +288,8 @@ def build_records(clean_df):
                 "TARGET_LAP_NUMBER": lap_number + 1,
                 "KNOWN_CAR_COUNT": len(state),
                 "KNOWN_LMGT3_COUNT": lmgt3_ct,
-                "KNOWN_LMP2_COUNT": lmp2_ct
+                "KNOWN_LMP2_COUNT": lmp2_ct,
+                "COMPLETED_LAP_COUNT": count_available_now,
             })
 
         '''
@@ -272,6 +301,25 @@ def build_records(clean_df):
 
     # print(f"STATE (007):\n{state["007"]}")
     return pd.DataFrame(origins), history
+
+
+def laps_near_event(lap_data: pd.DataFrame):
+    '''
+    find several laps around an event (pit stop, non-green flag, collision)
+    For the meantime, the function only checks for non-GF values and rows with pit 
+    markers. \n
+    It's worth noting that the pit time values are recorded in the lap AFTER the pit
+    finish line is crossed. So is a car is marked to have crossed the finish line in
+    the pits on lap 10, the pit time will be in lap 11, since the finish line is at
+    the start of the pitlane. \n
+    For reference, in the original CSVs and most derived dataframes, the columns for
+    these values are `"FLAG_AT_FL"` and `"CROSSING_FINISH_LINE_IN_PIT"`. Pit time can
+    also be found in `"PIT_TIME"` assuming the car pitted\n
+    '''
+
+    event_laps = {}
+    # should be dictionary keyed by lap row, with the value established as the event
+    # ie {9: "Yellow Flag", 10: "Pit lane finish line crossed"}
 
 
 if __name__ == "__main__":
@@ -301,3 +349,29 @@ if __name__ == "__main__":
     # print(f"\nTrain Races: {train.keys()}\nTest Races: {test.keys()}")
 
     print(f"Records Data Row 130:\n{origins.iloc[129]}\n")
+
+
+    #sample testing with one car:
+
+    col = [
+        "LAP_NUMBER",
+        "LAP_TIME_SEC",
+        "FLAG_AT_FL",
+        "CROSSING_FINISH_LINE_IN_PIT",
+        "PIT_TIME",
+        "DRIVER_NUMBER",
+    ]
+
+    # using car 51 as an example
+    # take only car 51's data
+    # which is done by selecting only the data points where the row's "NUMBER" column is
+    # equivalent to 51, and where the columns are the ones specified above.
+    # data is then sorted by lap number and the indices are reset
+
+    car51 = (
+        race_data.loc[race_data["NUMBER"].eq("51"), col]
+        .sort_values("LAP_NUMBER")
+        .reset_index(drop=True)
+    )
+
+
