@@ -233,9 +233,6 @@ def build_records(clean_df: pd.DataFrame):
 
     elapsed_sort = clean_df.sort_values(["ELAPSED_SEC"])
 
-    #lmgt3_ct = 0
-    #lmp2_ct = 0
-
     history = {}
 
     for row in range(len(elapsed_sort)):
@@ -317,12 +314,87 @@ def laps_near_event(lap_data: pd.DataFrame):
     also be found in `"PIT_TIME"` assuming the car pitted\n
     '''
 
+    key_laps = [] # ??
     event_laps = {}
     # should be dictionary keyed by lap row, with the value established as the event
     # ie {9: "Yellow Flag", 10: "Pit lane finish line crossed"}
 
+    lap_data = lap_data.sort_values("LAP_NUMBER")
+    for row in range(len(lap_data)):
+        current = lap_data.iloc[row]
+        lap_num = current["LAP_NUMBER"]
+
+        # flag, pit finish, pit time
+        event_options = [
+            current["FLAG_AT_FL"] != "GF", current["CROSSING_FINISH_LINE_IN_PIT"] != None, current["PIT_TIME"] != None
+            ]
+
+        is_event = True if any(event_options) else False
+
+        if is_event:
+            key_laps.append(lap_num)
+
+            events = []
+
+            # event_options = [bool, bool, bool] where [0] is a flag, [1] is a pit finish, [2] is a pit time
+            # must be multiple, separate if statements in case of multiple events (ie pit cross and full course yellow)
+            if event_options[0]:
+                events.append(f"Flag: {current["FLAG_AT_FL"]}")
+
+            if event_options[1]:
+                events.append(f"Pit Line Crossed")
+
+            if event_options[2]:
+                events.append(f"Pit Stop Time: {current["PIT_TIME"]}")
+
+            event_laps[lap_num] = ", ".join(events)
+                    
+    key_laps = np.array(key_laps).tolist()
+    flagged_laps = []
+    for lap_num in key_laps:
+        flagged_laps.append(lap_num)
+        flagged_laps.append(lap_num + 1)
+        flagged_laps.append(lap_num - 1)
+
+    flagged_laps = sorted(list(set(flagged_laps)))
+
+    return event_laps, key_laps #, flagged_laps
+
+
+def print_near_laps(lap_data: pd.DataFrame, lap: int):
+    """
+    prints the surrounding laps given a center lap and data.\n
+    prints two laps in each direction from the center lap input\n
+    """
+
+    close_data = lap_data.loc[
+        lap_data["LAP_NUMBER"].between(lap-2, lap+2)
+    ]
+
+    print(f"\nLap data surrounding lap {lap}:\n")
+    print(close_data)
+
+
+def lap_decisions(lap_data, event_laps):
+    '''
+    will theoretically decide if a lap is a usable candidate to determine pace, if it's excluded due to
+    some event, or if it is uncertain.\n
+    If a lap has a flag that is NOT a green flag (GF), it should be excluded. SF indicated a single flag
+    for a single sector, significantly slowing that lap; FCY indicates full course yellow, also
+    significantly slowing that lap. Should also probably exclude 2 or 3 laps following a flag as well, due
+    to inconsistencies with restarts, debris on track, or other factors. Although they might signify good data that slow cars
+    slow down faster classes, which is exacerbated because they are all close together.\n
+    If a lap has data for crossing the pit finish line or has a pit time (so if either of these are not None),
+    the lap should be excluded. The lap time is slightly extended on pit entry, so it shouldn't be considered
+    for pace. The lap time is significantly extended that the pit time is counted as part of sector 1, so those
+    laps should likewise not be considered.
+    '''
+    pass
+
+
 
 if __name__ == "__main__":
+
     path = Path(sys.argv[1]) if len(sys.argv) > 1 else lm_path
     race_id = sys.argv[2] if len(sys.argv) > 2 else race
     print(
@@ -332,23 +404,21 @@ if __name__ == "__main__":
     race_data = load_race_data(race_id, path)
     race_data = clean_lap_records(parse_duration_seconds(race_data))
 
-    print(f"\nRace Data Head: \n{race_data.head()}")
+    print(f"\nTesting: Race Data Head: \n{race_data.head()}")
 
     origins, history = build_records(race_data)
-    print(f"\nRecords Data Head:\n{origins.head()}\n")
+    # print(f"\nRecords Data Head:\n{origins.head()}\n")
 
     # print(f"\nHistory Data Part:\n{history["51"][:3]}\n")
-    '''
-    race_records = build_records(race_data)
-    print(f"\nRecords Data Car 51:\n{race_records.iloc[race_records["NUMBER"] == 51]}")
-    '''
+    
+    # race_records = build_records(race_data)
+    # print(f"\nRecords Data Car 51:\n{race_records.iloc[race_records["NUMBER"] == 51]}")
 
-    races, race_ids, race_csvs, train, test = make_race_splits()
-
+    # races, race_ids, race_csvs, train, test = make_race_splits()
     # print(f"{{Race: Race CSV}}: \n{races}")
     # print(f"\nTrain Races: {train.keys()}\nTest Races: {test.keys()}")
 
-    print(f"Records Data Row 130:\n{origins.iloc[129]}\n")
+    print(f"Testing: Records Data Row 130:\n{origins.iloc[129]}\n")
 
 
     #sample testing with one car:
@@ -373,5 +443,11 @@ if __name__ == "__main__":
         .sort_values("LAP_NUMBER")
         .reset_index(drop=True)
     )
+
+    print(f"Car 51 Header:\n{car51.head()}\n")
+
+    event_laps, key_laps= laps_near_event(car51)
+    print_near_laps(car51, key_laps[43])
+
 
 
