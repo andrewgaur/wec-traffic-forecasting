@@ -392,8 +392,7 @@ def lap_decisions(lap_data, event_laps):
     pass
 
 
-
-if __name__ == "__main__":
+def main():
 
     path = Path(sys.argv[1]) if len(sys.argv) > 1 else lm_path
     race_id = sys.argv[2] if len(sys.argv) > 2 else race
@@ -450,4 +449,8 @@ if __name__ == "__main__":
     print_near_laps(car51, key_laps[43])
 
 
+
+if __name__ == "__main__":
+    
+    main()
 
