@@ -3,3 +3,4 @@ pseudo.txt
 sections.txt
 data/source_data/*/*
 __pycache__/
+docs/
