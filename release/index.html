@@ -1,114 +1,64 @@
-<!doctype html>
-<html lang="en">
+﻿<!doctype html>
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101b20">
-  <title>WEC Traffic Forecasting | Replay Lab</title>
-  <style>
-    :root{font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Arial,sans-serif;color:#eaf2ee;background:#101b20;font-synthesis:none}
-    *{box-sizing:border-box}body{margin:0}button,input,select{font:inherit}button{cursor:pointer}a{color:#9ce4ca}
-    .wrap{max-width:1200px;margin:auto;padding:30px 24px 70px}.top{display:flex;justify-content:space-between;align-items:center;gap:20px;border-bottom:1px solid #36504e;padding-bottom:22px}.brand{font-weight:800;letter-spacing:.08em;font-size:13px;color:#9ce4ca}.tag{font-size:12px;border:1px solid #607672;border-radius:100px;padding:8px 12px;color:#b9cbc5}
-    h1{font-size:clamp(38px,6vw,72px);line-height:1.02;letter-spacing:-.06em;margin:40px 0 16px;max-width:900px}h2{font-size:22px;letter-spacing:-.03em;margin:0 0 14px}p{line-height:1.55;color:#bccbc5}.lead{font-size:18px;max-width:760px;margin-bottom:28px}.accent{color:#a3efc4}.notice{border-left:3px solid #f2b45a;background:#25312e;padding:12px 16px;color:#f4e5ce;font-size:14px;line-height:1.5;margin:25px 0 32px}
-    .grid{display:grid;grid-template-columns:330px 1fr;gap:18px}.card{background:#19282c;border:1px solid #36504e;border-radius:14px;padding:22px}.controls{display:grid;gap:19px}.control label{display:block;font-size:13px;color:#a8bbb5;margin-bottom:8px}.control select,.control input[type=range]{width:100%}.control select{appearance:none;border:1px solid #526b67;border-radius:8px;color:#f2f8f2;background:#25383b;padding:10px}.control input[type=range]{accent-color:#a3efc4}.small{font-size:13px;color:#a8bbb5}.button{border:1px solid #8adbb6;border-radius:8px;background:#a3efc4;color:#102321;padding:10px 14px;font-weight:700}.button.secondary{background:transparent;color:#a3efc4}.button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #f2b45a;outline-offset:2px}.actions{display:flex;flex-wrap:wrap;gap:8px}
-    .statrow{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.stat{background:#223539;border-radius:10px;padding:16px}.stat .num{display:block;font-size:25px;font-weight:750;font-variant-numeric:tabular-nums}.stat .label{color:#a8bbb5;font-size:12px}.section{margin-top:19px}.eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:#9ce4ca;font-weight:700}.timeline{position:relative;display:flex;gap:8px;margin:17px 0 22px;overflow-x:auto;padding-bottom:10px}.tick{min-width:72px;max-width:72px;background:#2a3c3e;color:#d8e5df;border:1px solid #526b67;border-radius:8px;padding:9px 4px;font-size:12px}.tick.active{background:#a3efc4;color:#102321;border-color:#a3efc4;font-weight:700}.tick .sub{display:block;font-size:10px;opacity:.75}.split{display:grid;grid-template-columns:1fr 1fr;gap:18px}.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;padding:10px 8px;border-bottom:1px solid #3b5150;white-space:nowrap}th{color:#a8bbb5;font-weight:600}td{font-variant-numeric:tabular-nums}.pill{display:inline-block;font-size:11px;padding:4px 7px;border-radius:5px}.hyper{background:#265b48;color:#bbf2d3}.gt{background:#655032;color:#ffe3a2}.plot{width:100%;height:220px}.muted{color:#a8bbb5}.comparison{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.compare{padding:14px;border:1px solid #49615b;border-radius:9px}.compare strong{font-size:23px;display:block;font-variant-numeric:tabular-nums}.compare span{font-size:12px;color:#a8bbb5}.formula{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;background:#102024;padding:14px;border-radius:8px;line-height:1.6;overflow:auto;color:#c7e5d5}.foot{margin-top:35px;padding-top:20px;border-top:1px solid #36504e;font-size:13px;color:#a8bbb5}.empty{padding:20px;color:#d9caa9;background:#352e26;border-radius:8px}
-    @media(max-width:850px){.grid,.split{grid-template-columns:1fr}.statrow{grid-template-columns:repeat(3,1fr)}}@media(max-width:540px){.wrap{padding:18px 14px 45px}.statrow,.comparison{grid-template-columns:1fr}.top{align-items:flex-start}.tag{max-width:155px;text-align:center}}
-  </style>
+  <meta name="theme-color" content="#171719">
+  <meta name="description" content="Inspect known laps and test a pace baseline with synthetic race timing data.">
+  <title>Race replay | WEC Traffic Forecasting</title>
+  <link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+  <link rel="preload" href="assets/fonts/PublicSans-variable.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+  <script src="demo.js" defer></script>
 </head>
 <body>
-<div class="wrap">
-  <header class="top"><div class="brand">WEC / TRAFFIC FORECASTING</div><div class="tag">Interactive prototype · synthetic race</div></header>
-  <main>
-    <h1>What could a car know <span class="accent">right now?</span></h1>
-    <p class="lead">Step through finish line crossings. Pick a Hypercar and a completed lap to see the information available when forecasting its next lap. Compare a simple recent pace baseline with the simulated next lap.</p>
-    <div class="notice">This public demo uses invented lap data. The pace baseline is an illustrative calculation, not a trained traffic forecasting model. The project is still building race replay and event filtering.</div>
-    <div class="grid">
-      <aside class="card">
-        <h2>Choose a forecast point</h2>
-        <div class="controls">
-          <div class="control"><label for="car">Hypercar</label><select id="car"></select></div>
-          <div class="control"><label for="lap">Completed lap <span id="lap-value"></span></label><input id="lap" type="range" min="2" max="10" value="5"></div>
-          <div class="actions"><button id="previous" class="button secondary" type="button">Previous lap</button><button id="next" class="button" type="button">Next lap</button></div>
-          <div class="small">A forecast starts only after the selected car crosses the line. Every other car contributes only laps completed by that time.</div>
-        </div>
-        <div class="section"><div class="eyebrow">Replay rule</div><div class="formula">known lap ⇔ finish time ≤ forecast time<br>target = selected car's next lap<br>baseline = median of up to 3 clean prior laps</div></div>
-      </aside>
-      <div>
-        <section class="card">
-          <div class="eyebrow">Forecast origin</div><h2 id="origin-title"></h2>
-          <div class="statrow"><div class="stat"><span class="num" id="time"></span><span class="label">Race elapsed</span></div><div class="stat"><span class="num" id="known"></span><span class="label">Cars with known laps</span></div><div class="stat"><span class="num" id="gt-known"></span><span class="label">GT crossings in prior 30s</span></div></div>
-          <div class="section"><div class="eyebrow">Selected car's timeline</div><div class="timeline" id="timeline" aria-label="Lap timeline"></div></div>
-        </section>
-        <div class="split section">
-          <section class="card"><div class="eyebrow">Available at this point</div><h2>Latest known laps</h2><div class="tablewrap"><table><thead><tr><th>Car</th><th>Class</th><th>Lap</th><th>Crossed at</th><th>Age</th></tr></thead><tbody id="state"></tbody></table></div></section>
-          <section class="card"><div class="eyebrow">Pace check</div><h2>Recent laps</h2><svg id="chart" class="plot" role="img" aria-label="Selected car lap times, known laps only" viewBox="0 0 460 220"></svg><div class="comparison"><div class="compare"><strong id="baseline"></strong><span>Recent pace baseline</span></div><div class="compare"><strong id="actual"></strong><span>Next synthetic lap</span></div><div class="compare"><strong id="error"></strong><span>Absolute error</span></div></div><p class="small" id="pace-note"></p></section>
-        </div>
-      </div>
+  <a class="skip-link" href="#main">Skip to replay</a>
+  <header class="product-bar">
+    <div class="product-identity">
+      <svg class="product-mark" width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M3 7h10l4 16h10M3 15h7m10 0h7M3 23h5L12 7h15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg>
+      <span>WEC Traffic Forecasting</span><span class="product-scope">Replay lab</span>
     </div>
-    <section class="card section"><div class="eyebrow">What this demonstrates</div><h2>Replay first, then model</h2><p>For a real forecast, the car's next lap time stays hidden until after the forecast point. Here you can reveal it for inspection. The same replay rule will prevent later laps from entering traffic features. Pit and flag laps need explicit filtering before fitting a pace model.</p><p>Current development uses official race timing files locally. Those files are not bundled here. This toy race shows the interface and timing logic without redistributing source data or presenting a model result the project has not earned.</p></section>
+    <a class="source-link" href="https://github.com/andrewgaur/wec-traffic-forecasting">Source code <span aria-hidden="true">↗</span></a>
+  </header>
+  <main id="main" class="canvas">
+    <div class="page-heading">
+      <div><h1>Race replay</h1><p>Inspect the laps available at each crossing, then check a next-lap pace estimate.</p></div>
+      <span class="dataset-label">Synthetic race · 6 cars</span>
+    </div>
+    <noscript><div class="error-message">Enable JavaScript to use the replay controls. This demo replays invented lap records and estimates the next lap from the median of recent clean laps.</div></noscript>
+    <div id="error-message" class="error-message" role="alert" hidden><p>The replay could not load. Reload the page to try again.</p><button id="retry" type="button">Reload demo</button></div>
+    <div class="replay-toolbar" aria-label="Replay controls">
+      <div class="car-field"><label for="car">Hypercar</label><select id="car"><option value="7">#7</option><option value="51" selected>#51</option><option value="8">#8</option></select></div>
+      <div class="lap-field"><label for="lap">Completed lap</label><div class="stepper"><button id="previous" type="button" aria-label="Previous lap"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="m10 3-5 5 5 5"/></svg></button><select id="lap" aria-label="Completed lap"><option>2</option><option>3</option><option>4</option><option selected>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option></select><button id="next" type="button" aria-label="Next lap"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg></button></div></div>
+      <div class="origin-stamp"><span>Forecast cutoff</span><span id="origin-time" class="origin-value">—</span><span class="unit">race elapsed</span></div>
+    </div>
+    <div class="analysis-grid">
+      <section class="panel forecast-panel" aria-labelledby="forecast-heading">
+        <div class="panel-heading"><h2 id="forecast-heading">Recent pace estimate</h2><span id="target-label" class="meta">—</span></div>
+        <div class="forecast-value"><span id="baseline">—</span><span class="unit">seconds</span></div>
+        <p id="estimate-note" class="estimate-note">Median of the latest clean completed laps.</p>
+        <div id="pace-inputs" class="pace-inputs" aria-label="Laps used in the estimate"></div>
+        <div class="outcome-action"><button id="reveal" class="primary-button" type="button" aria-expanded="false" aria-controls="outcome">Reveal next lap</button><span id="reveal-note" class="meta">Hidden at this crossing</span></div>
+        <div id="outcome" class="outcome" hidden><div><span class="meta">Actual next lap</span><span id="actual" class="result-value">—</span></div><div><span class="meta">Absolute error</span><span id="error" class="result-value">—</span></div><p id="outcome-note"></p></div>
+      </section>
+      <section class="panel history-panel" aria-labelledby="history-heading">
+        <div class="panel-heading"><h2 id="history-heading">Lap history</h2><span id="history-range" class="meta">—</span></div>
+        <div id="chart" class="history-chart" role="img" aria-label="Completed lap times with a labeled seconds scale"></div>
+        <div class="chart-caption"><span class="chart-key"><span class="line-key" aria-hidden="true"></span>Completed laps</span><span class="chart-key"><span class="line-key dashed" aria-hidden="true"></span>Pace estimate</span></div>
+      </section>
+    </div>
+    <section class="sequence-section" aria-labelledby="sequence-heading">
+      <div class="section-heading"><h2 id="sequence-heading">Lap sequence</h2><p>Choose a crossing to move the forecast cutoff.</p></div>
+      <div id="timeline" class="lap-sequence" aria-label="Choose a forecast origin"></div>
+    </section>
+    <section class="field-section" aria-labelledby="field-heading">
+      <div class="section-heading"><h2 id="field-heading">Known field</h2><p id="field-summary">—</p></div>
+      <div class="table-container"><table><caption class="sr-only">Latest completed observation for each car at the forecast cutoff</caption><thead><tr><th scope="col">Car</th><th scope="col">Class</th><th scope="col" class="numeric">Completed lap</th><th scope="col" class="numeric">Lap time</th><th scope="col" class="numeric">Crossed at</th><th scope="col" class="numeric">Observation age</th></tr></thead><tbody id="state"></tbody></table></div>
+      <p class="field-note" id="field-note"></p>
+    </section>
+    <details class="method"><summary>How the replay works <span aria-hidden="true">+</span></summary><div class="method-body"><div><h2>A crossing is the cutoff</h2><p>The selected car's completed lap sets the forecast time. A car enters the known field only after it has crossed the finish line. The table always uses its latest crossing at or before that cutoff.</p></div><div><h2>Start with recent pace</h2><p>The baseline takes the median of up to three clean completed laps. Scripted delay laps are excluded. Reveal the next synthetic lap to compare it with the estimate. Changing the car or lap hides the outcome again.</p></div><div><h2>Development status</h2><p>This standalone demo uses invented timing data. The Python project is building race replay and event filtering using official files locally. A trained traffic model and evaluation on held-out races remain future work.</p></div></div></details>
+    <footer class="footer"><span>Synthetic lap records. Illustrative pace baseline.</span><span>WEC Traffic Forecasting</span></footer>
+    <p id="replay-status" class="sr-only" role="status" aria-live="polite"></p>
   </main>
-  <footer class="foot">WEC Traffic Forecasting · <a href="https://github.com/andrewgaur/wec-traffic-forecasting">Source repository</a> · Demo data is synthetic.</footer>
-</div>
-<script>
-"use strict";
-const cars=[
-  {id:"7",type:"HYPERCAR",base:222.7,phase:0.2},
-  {id:"51",type:"HYPERCAR",base:223.5,phase:1.1},
-  {id:"8",type:"HYPERCAR",base:224.2,phase:2.0},
-  {id:"85",type:"LMGT3",base:240.8,phase:0.7},
-  {id:"46",type:"LMGT3",base:242.3,phase:1.7},
-  {id:"27",type:"LMGT3",base:243.1,phase:2.7}
-];
-const laps=[];
-for(const car of cars){
-  let elapsed=car.type==="HYPERCAR"?Number(car.id)*.14:9+Number(car.id)*.11;
-  for(let lap=1;lap<=11;lap++){
-    const variation=1.7*Math.sin(lap*1.39+car.phase)+.65*Math.cos(lap*.72+car.phase);
-    const slow=(car.type==="HYPERCAR"&&((car.id==="7"&&lap===7)||(car.id==="51"&&lap===9)))?4.8:0;
-    const duration=Number((car.base+variation+slow).toFixed(2));
-    elapsed=Number((elapsed+duration).toFixed(2));
-    laps.push({car:car.id,type:car.type,lap,duration,elapsed,event:slow>0?"Synthetic delay":""});
-  }
-}
-laps.sort((a,b)=>a.elapsed-b.elapsed||a.car.localeCompare(b.car));
-const byCar=id=>laps.filter(row=>row.car===id).sort((a,b)=>a.lap-b.lap);
-const $=id=>document.getElementById(id);
-const formatTime=seconds=>{const m=Math.floor(seconds/60);return `${String(m).padStart(2,"0")}:${(seconds-m*60).toFixed(1).padStart(4,"0")}`};
-const seconds=value=>`${value.toFixed(2)}s`;
-const median=values=>{const sorted=[...values].sort((a,b)=>a-b),n=sorted.length;return n%2?sorted[(n-1)/2]:(sorted[n/2-1]+sorted[n/2])/2};
-const carSelect=$("car"),lapSlider=$("lap");
-for(const car of cars.filter(c=>c.type==="HYPERCAR")){const option=document.createElement("option");option.value=car.id;option.textContent=`#${car.id} Hypercar`;carSelect.append(option)}
-carSelect.value="51";
-function render(){
-  const id=carSelect.value,lap=Number(lapSlider.value),history=byCar(id);
-  const origin=history.find(row=>row.lap===lap),target=history.find(row=>row.lap===lap+1);
-  const available=laps.filter(row=>row.elapsed<=origin.elapsed+1e-8);
-  const state=new Map();for(const row of available)state.set(row.car,row);
-  const known=[...state.values()].sort((a,b)=>a.type.localeCompare(b.type)||Number(a.car)-Number(b.car));
-  $("lap-value").textContent=lap;
-  $("origin-title").textContent=`Car #${id} after lap ${lap} → predict lap ${lap+1}`;
-  $("time").textContent=formatTime(origin.elapsed);$("known").textContent=known.length;
-  $("gt-known").textContent=available.filter(row=>row.type==="LMGT3"&&origin.elapsed-row.elapsed<=30).length;
-  const tbody=$("state");tbody.replaceChildren();
-  for(const row of known){const tr=document.createElement("tr");const values=[`#${row.car}`,row.type,row.lap,formatTime(row.elapsed),`${(origin.elapsed-row.elapsed).toFixed(1)}s`];for(let i=0;i<values.length;i++){const td=document.createElement("td");if(i===1){const span=document.createElement("span");span.className=`pill ${row.type==="HYPERCAR"?"hyper":"gt"}`;span.textContent=values[i];td.append(span)}else td.textContent=values[i];tr.append(td)}tbody.append(tr)}
-  const timeline=$("timeline");timeline.replaceChildren();
-  for(const row of history.slice(0,10)){const button=document.createElement("button");button.type="button";button.className=`tick${row.lap===lap?" active":""}`;button.innerHTML=`Lap ${row.lap}<span class="sub">${seconds(row.duration)}</span>`;button.disabled=row.lap<2;button.setAttribute("aria-label",`Choose completed lap ${row.lap}`);button.addEventListener("click",()=>{lapSlider.value=row.lap;render()});timeline.append(button)}
-  const prior=history.filter(row=>row.lap<=lap),cleanPrior=prior.filter(row=>!row.event),recent=cleanPrior.slice(-3).map(row=>row.duration),baseline=median(recent);
-  $("baseline").textContent=seconds(baseline);$("actual").textContent=seconds(target.duration);$("error").textContent=seconds(Math.abs(baseline-target.duration));
-  $("pace-note").textContent=`Median of clean laps ${cleanPrior.slice(-3).map(row=>row.lap).join(", ")}. The next lap is shown only as a synthetic outcome. ${target.event||"No scripted delay on the next lap."}`;
-  drawChart(prior);
-}
-function drawChart(rows){
-  const svg=$("chart");svg.replaceChildren();const ns="http://www.w3.org/2000/svg";
-  const points=rows.map((row,i)=>({x:35+i*(390/Math.max(rows.length-1,1)),y:175-(row.duration-219)*13,row}));
-  const line=document.createElementNS(ns,"polyline");line.setAttribute("points",points.map(p=>`${p.x},${p.y}`).join(" "));line.setAttribute("fill","none");line.setAttribute("stroke","#a3efc4");line.setAttribute("stroke-width","3");svg.append(line);
-  for(const p of points){const circle=document.createElementNS(ns,"circle");circle.setAttribute("cx",p.x);circle.setAttribute("cy",p.y);circle.setAttribute("r","5");circle.setAttribute("fill",p.row.event?"#f2b45a":"#a3efc4");svg.append(circle);const label=document.createElementNS(ns,"text");label.setAttribute("x",p.x);label.setAttribute("y","205");label.setAttribute("text-anchor","middle");label.setAttribute("fill","#a8bbb5");label.setAttribute("font-size","11");label.textContent=p.row.lap;svg.append(label)}
-  const title=document.createElementNS(ns,"title");title.textContent=`Known lap times: ${rows.map(r=>`lap ${r.lap}, ${r.duration} seconds`).join("; ")}`;svg.append(title);
-}
-carSelect.addEventListener("change",render);lapSlider.addEventListener("input",render);
-$("previous").addEventListener("click",()=>{lapSlider.value=Math.max(2,Number(lapSlider.value)-1);render()});
-$("next").addEventListener("click",()=>{lapSlider.value=Math.min(10,Number(lapSlider.value)+1);render()});
-render();
-</script>
 </body>
 </html>
