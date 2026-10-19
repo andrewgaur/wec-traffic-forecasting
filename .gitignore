@@ -2,3 +2,4 @@ learning-notes.md
 pseudo.txt
 sections.txt
 data/source_data/*/*
+__pycache__/
