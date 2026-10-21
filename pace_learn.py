@@ -208,6 +208,32 @@ def lap_decisions(lap_data):
     return lap_class
 
 
+def update_pace_history(current, previous, pace_laps):
+    active_driver = current["DRIVER_NUMBER"].item()
+    # current_lap = current["LAP_NUMBER"]
+    # car = current["NUMBER"]
+
+    if previous:
+        prev_driver = previous["DRIVER_NUMBER"].item()
+    # prev_lap = previous["LAP_NUMBER"]
+
+    race_pace = []
+
+    any_event = lap_event_bools(current)
+
+    if any(any_event):
+        race_pace.clear()
+    elif active_driver != prev_driver:
+        race_pace.clear()
+    elif previous and (active_driver == prev_driver):
+        race_pace = pace_laps
+        race_pace.append(current)
+    elif not previous:
+        race_pace.append(current)
+
+
+    return race_pace
+
 # personal implementation notes in /docs/pace_learn_docs.txt
 
 
