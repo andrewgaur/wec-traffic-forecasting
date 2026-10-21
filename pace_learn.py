@@ -48,6 +48,11 @@ def build_records(clean_df: pd.DataFrame):
     # at the moment, exclusively hypercars
     origins = []
 
+    # pace_history should be a dict, keyed by car number, with each value containing a list of that
+    # cars current pace history dictionaries.
+
+    pace_history = {}
+
     elapsed_sort = clean_df.sort_values(["ELAPSED_SEC"])
 
     history = {}
@@ -77,7 +82,28 @@ def build_records(clean_df: pd.DataFrame):
         elif car_number not in history.keys():
             history[car_number] = [lap_history_data]
 
+        prev = state.get(car_number)
         state[car_number] = current
+
+        # append car pace to pace_history dict
+        # if car is already in pace dictionary, then it has previous data, which should be input
+        # into update_pace_history. else, there is no history, so this lap is the first lap in
+        # pace history.
+
+        if car_number in pace_history.keys():
+
+            current_history = pace_history[car_number]
+            new_history = update_pace_history(current, prev, current_history)
+
+            pace_history[car_number] = new_history
+
+        elif car_number not in pace_history.keys():
+
+            new_history = update_pace_history(current, prev, None)
+
+            pace_history[car_number] = new_history
+
+
 
         if current["CLASS"] == "HYPERCAR":
 
@@ -118,11 +144,11 @@ def build_records(clean_df: pd.DataFrame):
         """
 
     # print(f"STATE (007):\n{state["007"]}")
-    return pd.DataFrame(origins), history
+    return pd.DataFrame(origins), history, pace_history
 
 def lap_event_bools(lap):
 
-    nongf = True if lap["FLAG_AT_FL"] != "GF" else False
+    nongf = True if lap["FLAG_AT_FL"] != "GF" and lap["FLAG_AT_FL"] != "FF" else False
     pit_enter = True if lap["CROSSING_FINISH_LINE_IN_PIT"] is not None else False
     pit_exit = True if lap["PIT_TIME"] is not None else False
 
@@ -210,27 +236,43 @@ def lap_decisions(lap_data):
 
 def update_pace_history(current, previous, pace_laps):
     active_driver = current["DRIVER_NUMBER"].item()
-    # current_lap = current["LAP_NUMBER"]
+    current_lap = current["LAP_NUMBER"].item()
     # car = current["NUMBER"]
-
-    if previous:
-        prev_driver = previous["DRIVER_NUMBER"].item()
-    # prev_lap = previous["LAP_NUMBER"]
+    current_data = {
+        "LAP_NUMBER": current_lap,
+        "LAP_TIME_SEC": current["LAP_TIME_SEC"].item(),
+        "ELAPSED_SEC": current["ELAPSED_SEC"].item()
+        }
 
     race_pace = []
+
+    if previous is not None:
+        prev_driver = previous["DRIVER_NUMBER"].item()
+
+    # prev_lap = previous["LAP_NUMBER"]
+    if pace_laps:
+        race_pace = pace_laps
 
     any_event = lap_event_bools(current)
 
     if any(any_event):
+        # if there is any event, clear the pace history.
+        # clearing on any non-green flag is rather conservative, but can be changed later
         race_pace.clear()
-    elif active_driver != prev_driver:
-        race_pace.clear()
-    elif previous and (active_driver == prev_driver):
-        race_pace = pace_laps
-        race_pace.append(current)
-    elif not previous:
-        race_pace.append(current)
 
+    elif (previous is not None) and active_driver != prev_driver:
+        # if the current driver is different, there was a driver swap, so clear pace history
+        race_pace.clear()
+
+    elif (previous is not None) and (active_driver == prev_driver):
+        # if the driver is the same as the previous driver, add the current lap to pace
+        # race_pace = pace_laps
+        # print("No pace history, starting new segment.")
+        race_pace.append(current_data)
+
+    else:
+        # if there are no previous laps, just append the current lap to pace history
+        race_pace.append(current_data)
 
     return race_pace
 
@@ -308,7 +350,7 @@ def main():
     is sorted chronologically, while history is sorted by car number.
     """
 
-    origins, history = build_records(race_data)
+    origins, history, pace_history = build_records(race_data)
     print(f"\nTesting: Records Data Row 130:\n{origins.iloc[130]}\n")
 
     lap_eligibility = lap_decisions(race_data)
@@ -316,6 +358,10 @@ def main():
     #print(f"Testing: Lap Eligibility: {list(lap_eligibility.items())[:1]}")
     for lap in range(218, 224):
         print(lap, lap_eligibility[("51", 2)][lap])
+
+    print("\nTesting pace history:")
+    for lap in range(218, 219):
+        print(lap, pace_history["51"])
 
     
 
