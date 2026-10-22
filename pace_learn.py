@@ -345,13 +345,84 @@ def main():
 
     race_data = load_race_data(race_id, path)
     race_data = clean_lap_records(parse_duration_seconds(race_data))
+    print("")
 
+    # CLEANED FULL DATAFRAME HEADER TESTING
     # print("\nTesting: Cleaned Race Data Head Laps:")
     # print(race_data.head())
 
     """ DATA/PACE GENERATION AND ANALYSIS"""
 
+
+    """ BASELINE FUTURE DATA LEAKAGE TESTING """
+
     """
+    not entirely sure but I think the idea of this is to compare splitting data BEFORE vs AFTER
+    running build_records on the dataset. because running it before allows the potential for leakage,
+    but running it after guarentees that the origin only sees the selected data. if the full dataset
+    is run through build_records and returns the same origin as the limited dataset that is run through
+    build_records, then there is no leakage.
+    """
+
+
+    full_data = race_data
+    split_data = race_data.iloc[(race_data["LAP_NUMBER"] <= 223)]
+
+    full_data_origin = build_records(full_data)[0]
+    split_data_origin = build_records(split_data)[0]
+
+    columns = [
+        "NUMBER",
+        "COMPLETED_LAP_NUMBER",
+        "PACE_BASELINE_SEC",
+        "PACE_SOURCE_LAPS",
+    ]
+
+    print(f"Full Data Origin Testing:\n{full_data_origin.loc[
+        full_data_origin["COMPLETED_LAP_NUMBER"].eq(223) & full_data_origin["NUMBER"].eq("51"),
+        columns]}"
+        )
+
+    print(f"Split-First Data Origin Testing:\n{split_data_origin.loc[
+        split_data_origin["COMPLETED_LAP_NUMBER"].eq(223) & split_data_origin["NUMBER"].eq("51"),
+        columns]}"
+        )
+
+
+
+    """ ORIGIN PACE BASELINE TESTING
+
+    origins, history, pace_history = build_records(race_data)
+    print(f"\nTesting: Origins Car 51 Laps 218-223:\n{
+        origins.loc[origins["COMPLETED_LAP_NUMBER"].between(218,223) & origins["NUMBER"].eq("51"),
+            ["NUMBER", "ORIGIN_ELAPSED_SEC", "COMPLETED_LAP_NUMBER", "COMPLETED_LAP_COUNT",
+            "PACE_CANDIDATE_COUNT", "PACE_BASELINE_SEC", "PACE_SOURCE_LAPS"]]
+        }\n")
+
+    """
+
+
+    """ CANDIDATE ELIGIBILITY TESTING
+
+    lap_eligibility = lap_decisions(race_data)
+    print("Testing: Lap Eligibility (Lap 218-223):")
+    for lap in range(218, 224):
+        print(lap, lap_eligibility[("51", 2)][lap])
+
+
+    sample = origins.loc[
+        origins["NUMBER"].eq("51")
+        & origins["COMPLETED_LAP_NUMBER"].between(218, 223),
+        ["COMPLETED_LAP_NUMBER", "PACE_CANDIDATE_COUNT"],
+    ]
+
+    print(sample)
+
+    """
+
+
+
+    """ NOTES
     `origins` is a DataFrame of exclusively Hypercar lap data, stored in order of lap completion.
     i.e., the first row is the first Hypercar to complete a lap, then the next, and so on and so forth
     so it tracks the order of finish-line-crossings, not per-car lap history, so if car is lapped, that
@@ -387,28 +458,6 @@ def main():
     Technically, `history` contain all the data in `origins`, as well as LMGT3 data, but origins 
     is sorted chronologically, while history is sorted by car number.
     """
-
-    origins, history, pace_history = build_records(race_data)
-    print(f"\nTesting: Origins Car 51 Laps 218-223:\n{
-        origins.loc[origins["COMPLETED_LAP_NUMBER"].between(218,223) & origins["NUMBER"].eq("51"),
-            ["NUMBER", "ORIGIN_ELAPSED_SEC", "COMPLETED_LAP_NUMBER", "COMPLETED_LAP_COUNT",
-            "PACE_CANDIDATE_COUNT", "PACE_BASELINE_SEC", "PACE_SOURCE_LAPS"]]
-        }\n")
-
-    lap_eligibility = lap_decisions(race_data)
-    print("Testing: Lap Eligibility (Lap 218-223):")
-    for lap in range(218, 224):
-        print(lap, lap_eligibility[("51", 2)][lap])
-
-
-    sample = origins.loc[
-        origins["NUMBER"].eq("51")
-        & origins["COMPLETED_LAP_NUMBER"].between(218, 223),
-        ["COMPLETED_LAP_NUMBER", "PACE_CANDIDATE_COUNT"],
-    ]
-
-    print(sample)
-
 
 
 if __name__ == "__main__":
