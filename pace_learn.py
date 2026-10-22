@@ -1,4 +1,5 @@
 # import csv
+import statistics
 import sys
 from pathlib import Path
 
@@ -104,6 +105,20 @@ def build_records(clean_df: pd.DataFrame):
             pace_history[car_number] = new_history
 
 
+        if car_number == "51" and 218 <= lap_number <= 223:
+            candidate_laps = [
+                record["LAP_NUMBER"]
+                for record in pace_history[car_number]
+            ]
+
+            print(lap_number, candidate_laps)
+
+        med_pace_baseline = calc_pace_baseline(pace_history[car_number])
+
+        source_laps = tuple(
+            record["LAP_NUMBER"]
+            for record in pace_history[car_number][-5:]
+        )
 
         if current["CLASS"] == "HYPERCAR":
 
@@ -133,6 +148,9 @@ def build_records(clean_df: pd.DataFrame):
                     "KNOWN_LMGT3_COUNT": lmgt3_ct,
                     "KNOWN_LMP2_COUNT": lmp2_ct,
                     "COMPLETED_LAP_COUNT": count_available_now,
+                    "PACE_CANDIDATE_COUNT": len(pace_history[car_number]),
+                    "PACE_BASELINE_SEC": med_pace_baseline,
+                    "PACE_SOURCE_LAPS": source_laps,
                 }
             )
 
@@ -163,8 +181,10 @@ def lap_decisions(lap_data):
     will theoretically decide if a lap is a usable candidate to determine pace, if it's excluded due to
     some event, or if it is uncertain.
 
-    If a lap has a flag that is NOT a green flag (GF), it should be excluded. SF indicates a single flag,
-    significantly slowing that lap; FCY indicates full course yellow, also significantly slowing that lap. 
+    If a lap has a flag that is NOT a green flag (GF), it should be excluded. SF indicates some kind of flag,
+    though unsure which one. could be surface flag, for debris/poor track conditions, could be single flag,
+    indicating a single sector flag. Either way, it presumably indicates that there is a flag, which
+    significantly slows that lap; FCY indicates full course yellow, also significantly slowing that lap.
     Should also probably exclude 2 or 3 laps following a flag as well, due to inconsistencies with restarts, 
     debris on track, or other factors. Although they might signify good data that slow cars
     slow down faster classes, which is exacerbated because they are all close together.
@@ -235,19 +255,19 @@ def lap_decisions(lap_data):
 
 
 def update_pace_history(current, previous, pace_laps):
-    active_driver = current["DRIVER_NUMBER"].item()
-    current_lap = current["LAP_NUMBER"].item()
+    active_driver = int(current["DRIVER_NUMBER"])
+    current_lap = int(current["LAP_NUMBER"])
     # car = current["NUMBER"]
     current_data = {
         "LAP_NUMBER": current_lap,
-        "LAP_TIME_SEC": current["LAP_TIME_SEC"].item(),
-        "ELAPSED_SEC": current["ELAPSED_SEC"].item()
+        "LAP_TIME_SEC": float(current["LAP_TIME_SEC"]),
+        "ELAPSED_SEC": float(current["ELAPSED_SEC"]),
         }
 
     race_pace = []
 
     if previous is not None:
-        prev_driver = previous["DRIVER_NUMBER"].item()
+        prev_driver = int(previous["DRIVER_NUMBER"])
 
     # prev_lap = previous["LAP_NUMBER"]
     if pace_laps:
@@ -276,7 +296,25 @@ def update_pace_history(current, previous, pace_laps):
 
     return race_pace
 
-# personal implementation notes in /docs/pace_learn_docs.txt
+
+
+
+def calc_pace_baseline(pace_laps, window_size = 5, minimum_laps = 3):
+
+    # latest 5 lap records (since window size is evaluated at 5 atm)
+    latest_records = pace_laps[-window_size:]
+
+    # return no baseline if there are not enough records to calculate one
+    # cutoff determined at 3 pace lap records at the moment
+    if len(latest_records) < minimum_laps:
+        return None
+
+    latest_times = [record["LAP_TIME_SEC"] for record in latest_records]
+    med_latest_time = statistics.median(latest_times)
+
+    return med_latest_time
+
+
 
 
 def main():
@@ -308,8 +346,8 @@ def main():
     race_data = load_race_data(race_id, path)
     race_data = clean_lap_records(parse_duration_seconds(race_data))
 
-    print("\nTesting: Cleaned Race Data Head Laps:")
-    print(race_data.head())
+    # print("\nTesting: Cleaned Race Data Head Laps:")
+    # print(race_data.head())
 
     """ DATA/PACE GENERATION AND ANALYSIS"""
 
@@ -351,19 +389,26 @@ def main():
     """
 
     origins, history, pace_history = build_records(race_data)
-    print(f"\nTesting: Records Data Row 130:\n{origins.iloc[130]}\n")
+    print(f"\nTesting: Origins Car 51 Laps 218-223:\n{
+        origins.loc[origins["COMPLETED_LAP_NUMBER"].between(218,223) & origins["NUMBER"].eq("51"),
+            ["NUMBER", "ORIGIN_ELAPSED_SEC", "COMPLETED_LAP_NUMBER", "COMPLETED_LAP_COUNT",
+            "PACE_CANDIDATE_COUNT", "PACE_BASELINE_SEC", "PACE_SOURCE_LAPS"]]
+        }\n")
 
     lap_eligibility = lap_decisions(race_data)
     print("Testing: Lap Eligibility (Lap 218-223):")
-    #print(f"Testing: Lap Eligibility: {list(lap_eligibility.items())[:1]}")
     for lap in range(218, 224):
         print(lap, lap_eligibility[("51", 2)][lap])
 
-    print("\nTesting pace history:")
-    for lap in range(218, 219):
-        print(lap, pace_history["51"])
 
-    
+    sample = origins.loc[
+        origins["NUMBER"].eq("51")
+        & origins["COMPLETED_LAP_NUMBER"].between(218, 223),
+        ["COMPLETED_LAP_NUMBER", "PACE_CANDIDATE_COUNT"],
+    ]
+
+    print(sample)
+
 
 
 if __name__ == "__main__":
