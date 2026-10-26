@@ -26,7 +26,7 @@ default_path = csv_files[0]
 def attach_target_laps(origins, race_data):
 
     target_results = race_data[
-        ["RACE_ID", "NUMBER", "LAP_NUMBER", "LAP_TIME_SEC", "FLAG_AT_FL", "CROSSING_FINISH_LINE_IN_PIT", "PIT_TIME"]
+        ["RACE_ID", "NUMBER", "LAP_NUMBER", "LAP_TIME_SEC", "ELAPSED_SEC", "FLAG_AT_FL", "CROSSING_FINISH_LINE_IN_PIT", "PIT_TIME"]
     ].copy()
 
     # update to clarify the targets so pandas can merge columns to origin
@@ -35,6 +35,7 @@ def attach_target_laps(origins, race_data):
         columns = {
             "LAP_NUMBER": "TARGET_LAP_NUMBER",
             "LAP_TIME_SEC": "TARGET_LAP_TIME_SEC",
+            "ELAPSED_SEC": "TARGET_ELAPSED_SEC",
             "FLAG_AT_FL": "TARGET_FLAG_AT_FL",
             "CROSSING_FINISH_LINE_IN_PIT": "TARGET_PIT_CROSSING",
             "PIT_TIME": "TARGET_PIT_TIME"
@@ -109,6 +110,45 @@ def label_target_cond(results):
 
     return labeled
 
+def label_observed_fcy_overlap(results, race_data):
+    r"""
+    Label target laps containing a recorded Full Course Yellow (FCY) crossing using the the change
+    in elapsed time and checking if it overlaps with time included in another car's lap that
+    includes a FCY flag at the FL crossing.
+    """
+
+    labeled = results.copy()
+
+    labeled["TARGET_LAP_START_SEC"] = (
+        labeled["TARGET_ELAPSED_SEC"]
+        - labeled["TARGET_LAP_TIME_SEC"]
+    )
+
+    labeled["TARGET_LAP_END_SEC"] = labeled["TARGET_ELAPSED_SEC"]
+
+    elapsed_time_fcy_crossings = []
+
+    for row in range(len(race_data)):
+
+        current = race_data.iloc[row]
+        if current["FLAG_AT_FL"] == "FCY":
+            elapsed_time_fcy_crossings.append(current["ELAPSED_SEC"])
+
+    for row in range(len(labeled)):
+        current = labeled.iloc[row]
+        start = current["TARGET_LAP_START_SEC"]
+        end = current["TARGET_LAP_END_SEC"]
+        if any(start <= cross <= end for cross in elapsed_time_fcy_crossings):
+            labeled.loc[row,"TARGET_OVERLAPS_OBSERVED_FCY"] = True
+        else:
+            labeled.loc[row, "TARGET_OVERLAPS_OBSERVED_FCY"] = False
+
+    # Store column as a Boolean column not an object column
+    labeled["TARGET_OVERLAPS_OBSERVED_FCY"] = (
+        labeled["TARGET_OVERLAPS_OBSERVED_FCY"].astype("boolean")
+    )
+
+    return labeled
 
 
 def main():
@@ -140,13 +180,17 @@ def main():
     eval_origins = calc_prediction_errors(eval_origins)
     eval_origins = label_target_cond(eval_origins)
 
-    """
+    eval_origins = label_observed_fcy_overlap(
+        eval_origins, race_data
+    )
+
+
     print("\nTESTING: Origins header with attached target data:")
     #print(eval_origins.head())
 
     sample = eval_origins.loc[
-            eval_origins["NUMBER"].eq("51")
-            & eval_origins["COMPLETED_LAP_NUMBER"].between(200, 220),
+            eval_origins["NUMBER"].eq("35")
+            & eval_origins["COMPLETED_LAP_NUMBER"].between(320, 330),
             ["COMPLETED_LAP_NUMBER",
             "TARGET_LAP_NUMBER",
             "PACE_BASELINE_SEC",
@@ -157,31 +201,35 @@ def main():
             "TARGET_FLAG_AT_FL",
             "TARGET_PIT_CROSSING",
             "TARGET_PIT_TIME",
-            "TARGET_PASSES_EVENT_CHECKS"]
+            "TARGET_PASSES_EVENT_CHECKS",
+            "TARGET_OVERLAPS_OBSERVED_FCY",]
         ]
     
     print(sample)
-    """
 
-    print("\nTESTING: Result summaries, scorable targets passing event checks:\n")
+
+    print("\nTESTING: Result summaries, targets passing event checks:\n")
 
     passing_targets = eval_origins.loc[
         eval_origins["TARGET_PASSES_EVENT_CHECKS"]
+        & (eval_origins["TARGET_OVERLAPS_OBSERVED_FCY"]).eq(False)
     ]
 
     eval_targets = passing_targets.loc[
         passing_targets["SCORABLE"]
     ]
 
-    mae, coverage, obs_ct, scored_ct = result_summary(eval_targets)
+    mae, coverage, obs_ct, scored_ct = result_summary(passing_targets)
 
     mae_text = "unavailable" if mae is None else f"{mae:.5f} seconds"
     coverage_text = (
         "unavailable" if coverage is None else f"{coverage:.2%}"
     )
+    median_abs_error = eval_targets["ABS_ERROR_SEC"].median()
 
     print(f"MAE: {mae_text}, Coverage: {coverage_text}")
     print(f"Laps Observed: {obs_ct}, Laps Scored: {scored_ct}")
+    print(f"Median Absolute Error: {median_abs_error:.5f}")
 
     largest_error = eval_targets.sort_values(
         "ABS_ERROR_SEC",
@@ -203,6 +251,7 @@ def main():
 
     """ Examination for one large error """
 
+"""
     example = largest_error.iloc[0]
     car = example["NUMBER"]
     target_lap = example["TARGET_LAP_NUMBER"]
@@ -224,7 +273,9 @@ def main():
         ],
     ].sort_values("LAP_NUMBER")
 
+    print(f"\nTESTING: Large Error - Nearby laps around lap {target_lap} of car {car}:")
     print(nearby_laps.to_string(index=False))
+"""
 
 if __name__ == "__main__":
 
