@@ -104,7 +104,7 @@ def build_records(clean_df: pd.DataFrame):
 
             pace_history[car_number] = new_history
 
-
+        """
         if car_number == "51" and 218 <= lap_number <= 223:
             candidate_laps = [
                 record["LAP_NUMBER"]
@@ -112,6 +112,7 @@ def build_records(clean_df: pd.DataFrame):
             ]
 
             print(lap_number, candidate_laps)
+        """
 
         med_pace_baseline = calc_pace_baseline(pace_history[car_number])
 
@@ -315,6 +316,10 @@ def calc_pace_baseline(pace_laps, window_size = 5, minimum_laps = 3):
     return med_latest_time
 
 
+def full_race_data(race_id, path):
+    race_data = load_race_data(race_id, path)
+    race_data = clean_lap_records(parse_duration_seconds(race_data))
+    return race_data
 
 
 def main():
@@ -343,8 +348,7 @@ def main():
         else None
     )
 
-    race_data = load_race_data(race_id, path)
-    race_data = clean_lap_records(parse_duration_seconds(race_data))
+    race_data = full_race_data(race_id, path)
     print("")
 
     # CLEANED FULL DATAFRAME HEADER TESTING
@@ -366,7 +370,18 @@ def main():
 
 
     full_data = race_data
-    split_data = race_data.iloc[(race_data["LAP_NUMBER"] <= 223)]
+
+    # Find when car 51 completes lap 223.
+    cutoff_time = race_data.loc[
+        race_data["NUMBER"].eq("51")
+        & race_data["LAP_NUMBER"].eq(223),
+        "ELAPSED_SEC",
+    ].item()
+
+    # Keep all cars' observations available at that moment.
+    split_data = race_data.loc[
+        race_data["ELAPSED_SEC"] <= cutoff_time
+    ]
 
     full_data_origin = build_records(full_data)[0]
     split_data_origin = build_records(split_data)[0]
